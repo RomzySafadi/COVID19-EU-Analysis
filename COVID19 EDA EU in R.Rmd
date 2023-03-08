@@ -1,0 +1,508 @@
+---
+title: "COVID19 EDA for EU"
+output: html_document
+---
+
+Analyzing data on new daily covid-19 cases and deaths in European Union (EU) and European Economic Area (EEA) countries. Data file may be downloaded [here](https://www.ecdc.europa.eu/en/publications-data/data-daily-new-cases-covid-19-eueea-country)
+
+(1) perform an Exploratory Data Analysis (EDA)
+(2) perform some hypothesis testing
+(3) perform some correlation testing
+(4) fit and describe a linear regression model. 
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE,
+                      message = FALSE)
+
+library(ggplot2)
+library(gridExtra)
+library(lubridate)
+library(tidyverse)
+library(patchwork)
+
+# The read.csv() below reads the data directly from the web. You may use this or
+# you can download and read from a local copy of the data file. To work from a
+# local file, you will need to modify the read.csv() code here:
+
+data <- read.csv("https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/csv",
+                 na.strings = "", fileEncoding = "UTF-8-BOM")
+
+# The zero-th step in any analysis is to 'sanity check' our data. Here, we call
+# glimpse() from the 'dplyr' package, but utils::str() would work, as well.
+glimpse(data)
+
+# If our read.csv() code above worked as expected, we should have a data frame
+# of 8460 rows, 11 columns | variables.
+
+# The last thing we're going to do is drop the 'continentExp' vector (as all
+# observations are "Europe"), coerce the 'dateRep' vector to a date format, and
+# coerce the country and territory vectors to factors.
+
+data <- data %>%
+  select(-c("continentExp")) %>%
+  mutate(dateRep = dmy(dateRep),
+         countriesAndTerritories = as.factor(countriesAndTerritories),
+         geoId = as.factor(geoId),
+         countryterritoryCode = as.factor(countryterritoryCode))
+
+```
+
+A data dictionary for the dataset is available [here](https://www.ecdc.europa.eu/sites/default/files/documents/Description-and-disclaimer_daily_reporting.pdf).
+
+---
+
+#### 1. Descriptive Statistics
+Exploratory Data Analysis (EDA). EDA includes the following:
+
+* Creation of a vector, 'incidence_rate,' equal to the daily new cases per 100K individuals, per country. Country populations are provided in 'popData2020.' This vector should be added to the 'data' data frame.
+* Creation of a vector, 'fatality_rate,' equal to the new deaths per 100K individuals, per country. Country populations are provided in 'popData2020.' This vector should be added to the 'data' data frame.
+* A visualization exploring new cases or incidence rates, per country, over time. You may choose a subset of countries, if you wish, but your visualization should include at least five (5) countries and include the entire time frame of the dataset.
+* A visualization exploring new deaths or fatality rates, per country, over time. You may choose a subset of countries, if you wish, but your visualization should include at least five (5) countries.
+* A table or visualization exploring some other aspect of the data. For example, you could explore case fatality rates per country; the number of deaths divided by the total number of cases. Note that to do this, you would want to like across the entire time of the dataset, looking at the total cases and deaths, per country.
+
+```{r descriptive_stats, fig.width = 8, fig.height = 8}
+
+# creating vector of incidence_rate
+
+incidence_rate <- round(c((data$cases * 100000)/data$popData2020), digits = 2)
+
+#creating fatality_rate
+
+fatality_rate <- round(c((data$deaths * 100000)/data$popData2020), digits = 4)
+
+#binding incidence_rate and fatality_rate to the data frame
+
+data_new <- data
+data_new <- cbind(data, incidence_rate, fatality_rate)
+```
+
+
+```{r}
+  
+#A visualization exploring incidence rates, per country, over time. five (5) countries and include the entire time frame of the dataset.
+
+#5 countries 
+
+Country1Sweden <- data_new[data_new$countriesAndTerritories == "Sweden",]
+Country2Austria <- data_new[data_new$countriesAndTerritories == "Austria",]
+Country3France <- data_new[data_new$countriesAndTerritories == "France",]
+Country4Italy <- data_new[data_new$countriesAndTerritories == "Italy",]
+Country5Spain <- data_new[data_new$countriesAndTerritories == "Spain",]
+
+Five_Countries <- list(Country1Sweden, Country2Austria, Country3France, Country4Italy, Country5Spain)
+
+Five_Countries_data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(Country1Sweden, Country2Austria, Country3France, Country4Italy, Country5Spain))
+
+
+```
+
+```{r}
+#A visualization exploring new deaths or fatality rates, per country, over time. Visualization should include at least five (5) countries.
+#date vs incidence rate by each country side by side
+
+par(mfrow = c(2, 3))
+
+plot(Country1Sweden$dateRep, Country1Sweden$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "darkblue")
+plot(Country2Austria$dateRep, Country2Austria$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "darkred")
+plot(Country3France$dateRep, Country3France$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "blue")
+plot(Country4Italy$dateRep, Country4Italy$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "red")
+plot(Country5Spain$dateRep, Country5Spain$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "yellow")
+
+#A visualization exploring new deaths or fatality rates, per country, over time. Visualization should include at least five (5) countries.
+
+#date vs Fatality rate by each country side by side
+
+
+#group them by country for incidence rate and fatality rate side by side, add ais and plot titles
+par(mfrow = c(2, 3))
+
+#date by fatality rate
+plot(Country1Sweden$dateRep, Country1Sweden$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "darkblue")
+plot(Country2Austria$dateRep, Country2Austria$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "darkred")
+plot(Country3France$dateRep, Country3France$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "blue")
+plot(Country4Italy$dateRep, Country4Italy$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "red")
+plot(Country5Spain$dateRep, Country5Spain$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "yellow")
+
+par(mfrow = c(2, 4))
+
+#clean, Organize, lael
+
+#Sweden
+plot(Country1Sweden$dateRep, Country1Sweden$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "darkblue", xlab = 'Date', ylab = 'Incidence Rate', main = 'Sweden Incidence')
+plot(Country1Sweden$dateRep, Country1Sweden$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "darkblue", xlab = 'Date', ylab = 'Fatality Rate', main = 'Sweden Fatality')
+
+#Austria
+plot(Country2Austria$dateRep, Country2Austria$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "darkred", xlab = 'Date', ylab = 'Incidence Rate', main = 'Austria Incidence')
+plot(Country2Austria$dateRep, Country2Austria$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "darkred", xlab = 'Date', ylab = 'Fatality Rate', main = 'Austria Fatality')
+
+#France
+plot(Country3France$dateRep, Country3France$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "blue", xlab = 'Date', ylab = 'Incidence Rate', main = 'France Incidence')
+plot(Country3France$dateRep, Country3France$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "blue", xlab = 'Date', ylab = 'Fatality Rate', main = 'France Fatality')
+
+#Italy
+plot(Country4Italy$dateRep, Country4Italy$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "red", xlab = 'Date', ylab = 'Incidence Rate', main = 'Italy Incidence')
+plot(Country4Italy$dateRep, Country4Italy$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "red", xlab = 'Date', ylab = 'Fatality Rate', main = 'Itality Fatality')
+
+#Spain
+plot(Country5Spain$dateRep, Country5Spain$incidence_rate, type = "b", frame = FALSE, pch = 20, col = "yellow", xlab = 'Date', ylab = 'Incidence Rate', main = 'Spain Incidence')
+plot(Country5Spain$dateRep, Country5Spain$fatality_rate, type = "b", frame = FALSE, pch = 20, col = "yellow", xlab = 'Date', ylab = 'Fatality Rate', main = 'Spain Fatality')
+
+```
+
+```{r fig.width = 10, fig.height = 10}
+
+#Sweden Austria France Italy Spain Bar plots of month by fatality rate 
+
+p1 <- data_new %>% 
+  group_by(countriesAndTerritories, month, year) %>% 
+  summarize(total_cases = sum(cases),
+            total_deaths = sum(deaths)) %>% 
+  mutate(fatality_rate = (total_deaths / total_cases) * 100) %>% 
+  filter(countriesAndTerritories == "Sweden") %>% 
+  ggplot(aes(x = month, y = fatality_rate)) +
+  geom_bar(stat = "identity", fill = "dark blue") +
+  facet_wrap(~year) +
+  ggtitle("Fatality in Sweden")
+
+p2 <- data_new %>% 
+  group_by(countriesAndTerritories, month, year) %>% 
+  summarize(total_cases = sum(cases),
+            total_deaths = sum(deaths)) %>% 
+  mutate(fatality_rate = (total_deaths / total_cases) * 100) %>% 
+  filter(countriesAndTerritories == "Austria") %>% 
+  ggplot(aes(x = month, y = fatality_rate)) +
+  geom_bar(stat = "identity", fill = "dark blue") +
+  facet_wrap(~year) + 
+  ggtitle("Fatality in Austria")
+
+
+p3 <- data_new %>% 
+  group_by(countriesAndTerritories, month, year) %>% 
+  summarize(total_cases = sum(cases),
+            total_deaths = sum(deaths)) %>% 
+  mutate(fatality_rate = (total_deaths / total_cases) * 100) %>% 
+  filter(countriesAndTerritories == "France") %>% 
+  ggplot(aes(x = month, y = fatality_rate)) +
+  geom_bar(stat = "identity", fill = "dark blue") +
+  facet_wrap(~year) +
+  ggtitle("Fatality in France")
+
+
+p4 <- data_new %>% 
+  group_by(countriesAndTerritories, month, year) %>% 
+  summarize(total_cases = sum(cases),
+            total_deaths = sum(deaths)) %>% 
+  mutate(fatality_rate = (total_deaths / total_cases) * 100) %>% 
+  filter(countriesAndTerritories == "Spain") %>% 
+  ggplot(aes(x = month, y = fatality_rate)) +
+  geom_bar(stat = "identity", fill = "dark blue") +
+  facet_wrap(~year) +
+  ggtitle("Fatality in Spain")
+
+p5 <- data_new %>% 
+  group_by(countriesAndTerritories, month, year) %>% 
+  summarize(total_cases = sum(cases),
+            total_deaths = sum(deaths)) %>% 
+  mutate(fatality_rate = (total_deaths / total_cases) * 100) %>% 
+  filter(countriesAndTerritories == "Italy") %>% 
+  ggplot(aes(x = month, y = fatality_rate)) +
+  geom_bar(stat = "identity", fill = "dark blue") +
+  facet_wrap(~year) +
+  ggtitle("Fatality in Italy")
+
+p1 / p2 / p3 / p4 / p5
+
+```
+
+```{r}
+# A Visualization exploring fatality rates per country; the number of deaths divided by the total number of cases. 
+
+#fatality rates per country
+fatality_rates_per_country <- round(c((data$deaths/data$cases)*100), digits = 4)
+
+data_new <- cbind(data_new, fatality_rates_per_country)
+
+#plot fatality rates over time for all countries
+
+plot(data_new$dateRep, data_new$fatality_rates_per_country, type = "b", frame = FALSE, pch = 20, col = "salmon", xlab = 'Date', ylab = 'Fatality Rate', main = 'Fatality Rate Over Time')
+
+#plot cases over time
+
+plot(data_new$dateRep, data_new$cases, type = "b", frame = FALSE, pch = 20, col = "salmon", xlab = 'Date', ylab = 'Cases', main = 'Cases Over Time')
+
+```
+
+```{r}
+#Correlation cases and deaths:
+
+#correlation check of cases vs deaths
+corr_cases_death <- cor.test(data_new$cases, data_new$deaths, method = "kendall")
+corr_cases_death
+
+data_new %>% 
+  filter(countriesAndTerritories %in% c("Sweden", "Austria", "France", "Italy", "Spain")) %>% 
+  ggplot(aes(x = cases, y = deaths)) +
+  geom_point(color = "dark blue") +
+  facet_wrap(~ countriesAndTerritories, scales = "free") +
+  labs(x = "Cases", y = "Deaths", title = "Correlation Cases and Deaths")
+
+```
+
+```{r}
+#correlation check of Incidence Rate vs fatality rate and fatality rate per country
+corr_Incidence_Fatality <- cor.test(data_new$incidence_rate, data_new$fatality_rate, method = "kendall")
+corr_Incidence_Fatality
+corr_Incidence_Fatality_per_country <- cor.test(data_new$incidence_rate, data_new$fatality_rates_per_country, method = "kendall")
+corr_Incidence_Fatality_per_country
+
+# Correlation of Deaths and Cases, Incidence Rate and Fatality Rate, Incidence Rate and Fatality Rate per Country
+par(mfrow = c(3, 1))
+library("ggpubr")
+ggscatter(data_new, x = "cases", y = "deaths", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Cases", ylab = "Deaths")
+
+ggscatter(data_new, x = "incidence_rate", y = "fatality_rate", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Incidence Rate", ylab = "Fatality Rate")
+
+ggscatter(data_new, x = "incidence_rate", y = "fatality_rates_per_country", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Incidence Rate", ylab = "Fatality Rate Per Country")
+
+# Table groupedby country 
+
+data_new %>% 
+  group_by(countriesAndTerritories) %>% 
+  summarize(total_cases = sum(cases, na.rm = TRUE), total_deaths = sum(deaths, na.rm = TRUE)) %>% 
+  mutate(fatality_rate = (total_deaths / total_cases) * 100)
+
+```
+
+#### 2. Inferential Statistics
+Two (2) countries to compare their incidence or fatality rates using hypothesis testing. Including the following:
+
+* Visualization(s) comparing the daily incidence or fatality rates of the selected countries,
+* A statement of the null hypothesis.
+* A short justification of the statistical test selected.
+    + Why is the test you selected an appropriate one for the comparison we're making?
+* A brief discussion of any distributional assumptions of that test.
+    + Does the statistical test we selected require assumptions about our data?
+    + If so, does our data satisfy those assumptions?
+* Your selected alpha.
+* The test function output; i.e. the R output.
+* The relevant confidence interval, if not returned by the R test output.
+* A concluding statement on the outcome of the statistical test.
+    + i.e. Based on our selected alpha, do we reject or fail to reject our null hypothesis?
+
+```{r inferential_stats}
+# filter data to represent two countries of interest
+data_spain_france <- data_new %>% 
+  filter(countriesAndTerritories %in% c("Spain", "France")) %>% 
+  filter(cases >0 & deaths > 0)
+#boxplot to compare fatality rate and incidence rate for Spain and France 
+data_spain_france %>% 
+  ggplot(aes(x = countriesAndTerritories, y = fatality_rate, fill = countriesAndTerritories)) +
+  geom_boxplot()
+
+data_spain_france %>% 
+  ggplot(aes(x = countriesAndTerritories, y = incidence_rate, fill = countriesAndTerritories)) +
+  geom_boxplot()
+#Filter for Spain and France seperately 
+spain <- filter(data_spain_france, countriesAndTerritories == "Spain" ) %>% 
+  pull(fatality_rate)
+france <- filter(data_spain_france, countriesAndTerritories == "France" ) %>% 
+  pull(fatality_rate)
+
+
+#Null Hypothesis: No significant difference between the mean fatality rate of France and Spain. 
+
+#Alternative Hypothesis: There is a significant difference between the mean fatality rate of France and Spain. 
+
+#Selected a T test because were comparing the means of two different groups. 
+
+# A T test assumes that the data is normally distributed, the data satisfies this assumption. 
+
+# Selected alpha: 0.05
+
+#Test function output (T Test): 
+
+t_test_output <- t.test(spain, france) 
+
+# 95 percent confidence interval:-0.03793189  0.03215947
+
+# fail to reject null hypothesis, p = 0.8717 > 0.05
+```
+
+#### 3. Correlation
+  Considering all countries, explore the relationship between incidence rates and fatality rates. Including the following:
+
+* Visualization(s) showing the distributions of daily incidence and fatality rates, regardless of country. Please note that both country and date should be disregarded here.
+* A short statement identifying the most appropriate correlation coefficient.
+    + For the correlation we're interested in, which correlation coefficient is most appropriate?
+    + Why do you find the correlation coefficient selected to be the most appropriate?
+* The calculated correlation coefficient or coefficient test output; e.g. *cor()* or *cor.test()*.
+  
+```{r correlation, fig.width = 8, fig.height = 8}
+
+data_new %>% 
+  ggplot(aes(x = incidence_rate, y = fatality_rate)) +
+  geom_point()
+##ggscatter:
+ggscatter(data_new, x = "incidence_rate", y = "fatality_rate", 
+           conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Incidence Rate", ylab = "Fatality Rate Per Country")
+
+#Spearman correlation, pearson is too sensitive for outliers. 
+#Plenty of outliers, makes Spearman correlation the right choice. 
+
+cor.test(data_new$incidence_rate, data_new$fatality_rate, data = data_new, method = "spearman", na.action = na.omit)
+#R = 0.62,  moderately correlated
+
+
+```
+
+#### 4. Regression
+Fit a model on data from twenty (20) countries considering total new cases as a function of population, population density and gross domestic product (GDP) per capita. Note that the GDP per capita is given in "purchasing power standard," which considers the costs of goods and services in a country relative to incomes in that country; i.e. we will consider this as appropriately standardized.
+
+Code is given below defining a new data frame, 'model_df,' which provides the total area and standardized GDP per capita for the twenty (20) countries for our model fit. You are responsible for creating a vector of the total new cases across the time frame of the dataset, for each of those countries, and adding that vector to our 'model_df" data frame.
+
+```{r regression_a, fig.width = 8, fig.height = 8}
+
+# The code below creates a new data frame, 'model_df,' that includes the area,
+# GDP per capita, population and population density for the twenty (20)
+# countries of interest. All you should need to do is execute this code, as is.
+
+# You do not need to add code in this chunk. You will need to add code in the
+# 'regression_b,' 'regression_c' and 'regression_d' code chunks.
+
+twenty_countries <- c("Austria", "Belgium", "Bulgaria", "Cyprus", "Denmark",
+                      "Finland", "France", "Germany", "Hungary", "Ireland",
+                      "Latvia", "Lithuania", "Malta", "Norway", "Poland",
+                      "Portugal", "Romania", "Slovakia", "Spain", "Sweden")
+
+sq_km <- c(83858, 30510, 110994, 9251, 44493, 338145, 551695, 357386, 93030,
+           70273, 64589, 65300, 316, 385178, 312685, 88416, 238397, 49036,
+           498511, 450295)
+
+gdp_pps <- c(128, 118, 51, 91, 129, 111, 104, 123, 71, 190, 69, 81, 100, 142,
+             71, 78, 65, 71, 91, 120)
+
+model_df <- data %>%
+  select(c(countriesAndTerritories, popData2020)) %>%
+  filter(countriesAndTerritories %in% twenty_countries) %>%
+  distinct(countriesAndTerritories, .keep_all = TRUE) %>%
+  add_column(sq_km, gdp_pps) %>%
+  mutate(pop_dens = popData2020 / sq_km) %>%
+  rename(country = countriesAndTerritories, pop = popData2020)
+
+# total_cases_by_country <- data_new %>% 
+#   group_by(countriesAndTerritories) %>% 
+#   summarize(total_cases = sum(cases, na.rm = TRUE)) %>% 
+#   filter(countriesAndTerritories %in% twenty_countries) %>% 
+#   rename(country = countriesAndTerritories)
+# 
+# model_df <- full_join(model_df, total_cases_by_country)
+ 
+```
+
+Next, we need to add one (1) more column to our 'model_df' data frame. Specifically, one that has the total number of new cases for each of the twenty (20) countries. We calculate the total number of new cases by summing all the daily new cases, for each country, across all the days in the dataset.
+
+```{r regression_b}
+### The following code will be removed for students to complete the work themselves.
+
+total_cases <- data %>%
+  select(c(countriesAndTerritories, cases)) %>%
+  group_by(countriesAndTerritories) %>%
+  summarize(total_cases = sum(cases)) %>%
+  filter(countriesAndTerritories %in% twenty_countries) %>%
+  select(total_cases)
+
+model_df <- model_df %>%
+  add_column(total_cases)
+
+```
+
+Now, we will fit our model using the data in 'model_df.' We are interested in explaining total cases (response) as a function of population (explanatory), population density (explanatory), and GDP (explanatory).
+
+Modeling work should including the following:
+
+* A description - either narrative or using R output - of your 'model_df' data frame.
+    + Consider:  what data types are present? What do our rows and columns represent?
+* The *lm()* *summary()* output of your fitted model. As we did in the second Data Analysis Assignment, you can pass your fitted model object - i.e. the output of **lm()** - to *summary()* and get additional details, including R^2, on your model fit.
+* A short statement on the fit of the model.
+    + Which, if any, of our coefficients are statistically significant?
+    + What is the R^2 of our model?
+    + Should we consider a reduced model; i.e. one with fewer parameters?
+
+```{r regression_c}
+
+summary(model_df)
+#Countries are categorical
+#Rest of columns are numeric
+
+lr <- lm(total_cases ~ pop + pop_dens + gdp_pps, data = model_df)
+summary(lr)
+
+#pop is the only statistical significant coefficient. Only coefficient that is significant is pop, ecause its p value is < 0.05.
+
+#R-Squared is 0.8791, the adjusted R-squared = 0.8531
+
+#Yes, I would consider a reduced model. The first reduced model drops pop_dens, the second would drop both pop_dens and gdp_pps.
+reduce_model_1 <- lm(total_cases ~ pop  + gdp_pps, data = model_df)
+summary(reduce_model_1)
+#Multiple R-squared:  0.879,	Adjusted R-squared:  0.8628 
+
+reduce_model_2 <- lm(total_cases ~ pop, data = model_df)
+summary(reduce_model_2)
+
+#R-squared:  0.8767,	Adjusted R-squared:  0.869 
+
+# reduce_model_2 is a better reduced model because adjusted R-squared is higher. 
+
+```
+
+The last thing we will do is use our model to predict the total new cases of two (2) countries not included in our model fit. Including:
+
+* The predicted total new cases for both countries.
+* The actual total new cases for both countries.
+* A short statement on the performance of the model in these two (2) cases.
+    + Compare the new predictions to those made on the fitted dataset. You may compare the predicted values or the residuals.
+  
+```{r regression_d}
+
+# The code below defines our 'newdata' data frame for applying our model to the
+# population, population density and GDP per capita for two (2). Please execute
+# the code as given.
+
+newdata <- data.frame(country = c("Luxembourg", "Netherlands"),
+                      pop = c(626108, 17407585),
+                      gdp_pps = c(261, 130),
+                      pop_dens = c(626108, 17407585) / c(2586, 41540))
+
+# Add code here returning the actual  total cases from our dataset for the
+# Netherlands and Luxembourg.
+
+total_cases_neth_lux <- data %>%
+  select(c(countriesAndTerritories, cases)) %>%
+  group_by(countriesAndTerritories) %>%
+  summarize(total_cases = sum(cases)) %>%
+  filter(countriesAndTerritories %in% c("Luxembourg", "Netherlands")) %>%
+  select(total_cases)
+
+total_cases_neth_lux
+
+# Add code here returning the total cases for the Netherlands and Luxembourg
+# predicted by our model.
+
+new_predictions <- predict(reduce_model_2, newdata = newdata) 
+
+cbind(total_cases_neth_lux, new_predictions) %>% 
+  mutate(Country = c("Luxembourg", "Netherlands"), .before = everything()) %>% 
+  mutate(diff = abs(new_predictions - total_cases))
+#The predicted model produced predicted values relatively far away from the actual values. An absolute difference of 104,402 for Luxemourg and 2634257 for Netherlands. 
+```
